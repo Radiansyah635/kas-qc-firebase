@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Kas QC Shift B</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .hidden { display: none; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .action-btn {
+      @apply px-2 py-1 rounded text-sm font-medium transition-colors;
+    }
+    #loading {
+      @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+    }
+    .spinner {
+      @apply w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin;
+    }
+    .logout-btn {
+      @apply bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm ml-4;
+      transition: all 0.3s ease;
+    }
+  </style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCl6IQOnMuyX0-BUoCGkTfWR14dwAfugW4",
+    authDomain: "kas-qc-shiftb.firebaseapp.com",
+    projectId: "kas-qc-shiftb",
+    storageBucket: "kas-qc-shiftb.firebasestorage.app",
+    messagingSenderId: "945411217042",
+    appId: "1:945411217042:web:064d822dba26c7c45fb84b",
+    measurementId: "G-7D30S3SMC6"
+  };
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+</script>
+
+</head>
+<body class="bg-gray-900 text-white font-sans">
+  <!-- LOGIN SECTION -->
+  <section id="loginSection" class="min-h-screen flex flex-col justify-center items-center fade-in">
+    <div class="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-3xl font-bold mb-6 text-center">Login Kas QC Shift B</h2>
+      <input type="password" id="passwordInput" placeholder="Masukkan Kata Sandi"
+             class="mb-4 p-3 w-full rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+      <button onclick="checkPassword()" 
+              class="bg-green-600 hover:bg-green-700 px-4 py-3 w-full rounded font-bold transition-colors">
+        Masuk
+      </button>
+      <p id="loginError" class="text-red-400 mt-4 text-center"></p>
+    </div>
+  </section>
+
+  <!-- LOADING INDICATOR -->
+  <div id="loading" class="hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- NAVIGATION -->
+  <header id="navBar" class="hidden p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10">
+    <h1 class="font-bold text-green-400 text-xl">Kas QC Shift B</h1>
+    <nav class="space-x-3 flex items-center">
+      <button onclick="showSection('dashboard')" class="nav-btn hover:text-green-400 transition-colors">Dashboard</button>
+      <button onclick="showSection('agenda')" class="nav-btn hover:text-green-400 transition-colors">Agenda</button>
+      <button onclick="showSection('team')" class="nav-btn hover:text-green-400 transition-colors">Tim</button>
+      <button onclick="showSection('aturan')" class="nav-btn hover:text-green-400 transition-colors">Aturan</button>
+      <button id="adminNav" onclick="showSection('admin')" class="hidden bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">
+        Admin
+      </button>
+      <button onclick="logout()" class="logout-btn">
+        Logout
+      </button>
+    </nav>
+  </header>
+
+  <!-- DASHBOARD SECTION -->
+  <main id="dashboard" class="hidden p-6 max-w-6xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-6">Dashboard Kas</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="bg-green-600 p-4 rounded-lg text-center shadow-lg">
+        <p class="text-sm">Total Kas</p>
+        <p class="text-2xl font-bold" id="totalKas">Rp 0</p>
+      </div>
+      <div class="bg-blue-600 p-4 rounded-lg text-center shadow-lg">
+        <p class="text-sm">Kas Masuk</p>
+        <p class="text-2xl font-bold" id="kasMasuk">Rp 0</p>
+      </div>
+      <div class="bg-red-600 p-4 rounded-lg text-center shadow-lg">
+        <p class="text-sm">Kas Keluar</p>
+        <p class="text-2xl font-bold" id="kasKeluar">Rp 0</p>
+      </div>
+    </div>
+    
+    <!-- GRAFIK KAS -->
+    <div class="bg-gray-800 p-4 rounded-lg mb-6">
+      <h4 class="font-medium mb-4">Grafik Kas Bulan Ini</h4>
+      <canvas id="kasChart" height="200"></canvas>
+    </div>
+    
+    <!-- FILTER TRANSAKSI -->
+    <div class="bg-gray-800 p-4 rounded-lg mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="text-xl font-bold">Laporan Transaksi</h3>
+        <button onclick="exportToExcel()" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+          Export Excel
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <select id="filterBulan" class="bg-gray-700 p-2 rounded">
+          <option value="all">Semua Bulan</option>
+          <option value="01">Januari</option>
+          <option value="02">Februari</option>
+          <option value="03">Maret</option>
+          <option value="04">April</option>
+          <option value="05">Mei</option>
+          <option value="06">Juni</option>
+          <option value="07">Juli</option>
+          <option value="08">Agustus</option>
+          <option value="09">September</option>
+          <option value="10">Oktober</option>
+          <option value="11">November</option>
+          <option value="12">Desember</option>
+        </select>
+        <select id="filterTipe" class="bg-gray-700 p-2 rounded">
+          <option value="all">Semua Tipe</option>
+          <option value="Masuk">Masuk</option>
+          <option value="Keluar">Keluar</option>
+        </select>
+        <input type="number" id="filterMin" placeholder="Min. Jumlah" class="bg-gray-700 p-2 rounded">
+        <button onclick="applyFilter()" class="bg-green-600 hover:bg-green-700 p-2 rounded">
+          Terapkan
+        </button>
+      </div>
+    </div>
+    
+    <!-- TABEL TRANSAKSI -->
+    <div class="overflow-x-auto">
+      <table class="w-full table-auto text-sm bg-gray-800 rounded-lg overflow-hidden">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="p-3 text-left">Tanggal</th>
+            <th class="p-3 text-left">Keterangan</th>
+            <th class="p-3 text-left">Tipe</th>
+            <th class="p-3 text-right">Jumlah</th>
+            <th class="p-3 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="logBody" class="divide-y divide-gray-700"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- AGENDA SECTION -->
+  <section id="agenda" class="hidden p-6 max-w-4xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-6">Agenda Meeting</h2>
+    <ul id="agendaList" class="space-y-4"></ul>
+  </section>
+
+  <!-- TEAM SECTION -->
+  <section id="team" class="hidden p-6 max-w-4xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-6 text-center">Tim QC Shift B</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+        <img src="https://i.pravatar.cc/150?u=ramdhani" class="mx-auto rounded-full w-24 h-24 object-cover">
+        <p class="font-bold mt-3 text-center">Ramdhani</p>
+        <p class="text-sm text-gray-400 text-center">Koordinator</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+        <img src="https://i.pravatar.cc/150?u=farhan" class="mx-auto rounded-full w-24 h-24 object-cover">
+        <p class="font-bold mt-3 text-center">Farhan Nasution</p>
+        <p class="text-sm text-gray-400 text-center">Anggota</p>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+        <img src="https://i.pravatar.cc/150?u=wisnu" class="mx-auto rounded-full w-24 h-24 object-cover">
+        <p class="font-bold mt-3 text-center">Wisnu Putro</p>
+        <p class="text-sm text-gray-400 text-center">Anggota</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ATURAN SECTION -->
+  <section id="aturan" class="hidden p-6 max-w-3xl mx-auto fade-in">
+    <h2 class="text-2xl font-bold mb-6">Aturan Kas QC</h2>
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <ul class="space-y-3 list-disc pl-5">
+        <li>Iuran minimal Rp 10.000 per bulan per anggota</li>
+        <li>Dana digunakan untuk keperluan tim seperti:
+          <ul class="list-circle pl-5 mt-2 space-y-2">
+            <li>Konsumsi rapat rutin</li>
+            <li>Kegiatan team building</li>
+            <li>Pengeluaran darurat yang disepakati</li>
+          </ul>
+        </li>
+        <li>Setiap transaksi harus dicatat dengan jelas</li>
+        <li>Laporan kas akan diaudit bersama setiap bulan</li>
+        <li>Pengeluaran di atas Rp 50.000 harus disetujui minimal 2 anggota</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- FORM ADMIN SECTION -->
+  <section id="admin" class="hidden p-6 max-w-4xl mx-auto fade-in">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold mb-4">Input Transaksi</h2>
+        <form id="formKas" class="space-y-4">
+          <input type="hidden" id="editTransaksiId">
+          <div>
+            <label for="tgl" class="block text-sm font-medium mb-1">Tanggal</label>
+            <input type="date" id="tgl" class="w-full p-3 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+          </div>
+          <div>
+            <label for="ket" class="block text-sm font-medium mb-1">Keterangan</label>
+            <input type="text" id="ket" placeholder="Contoh: Iuran bulanan" class="w-full p-3 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+          </div>
+          <div>
+            <label for="tipe" class="block text-sm font-medium mb-1">Jenis Transaksi</label>
+            <select id="tipe" class="w-full p-3 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+              <option value="">-- Pilih --</option>
+              <option value="Masuk">Kas Masuk</option>
+              <option value="Keluar">Kas Keluar</option>
+            </select>
+          </div>
+          <div>
+            <label for="jml" class="block text-sm font-medium mb-1">Jumlah (Rp)</label>
+            <input type="number" id="jml" placeholder="10000" min="1" class="w-full p-3 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+          </div>
+          <div class="flex space-x-2">
+            <button type="submit" id="submitTransaksi" class="bg-green-600 hover:bg-green-700 px-4 py-3 w-full rounded font-bold transition-colors">
+              Simpan
+            </button>
+            <button type="button" id="cancelEditTransaksi" onclick="cancelEditTransaksi()" class="bg-gray-600 hover:bg-gray-700 px-4 py-3 rounded font-bold transition-colors hidden">
+              Batal
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold mb-4">Input Agenda</h2>
+        <form id="formAgenda" class="space-y-4">
+          <input type="hidden" id="editAgendaId">
+          <div>
+            <label for="agendaText" class="block text-sm font-medium mb-1">Agenda Meeting</label>
+            <input type="text" id="agendaText" placeholder="Contoh: Rapat evaluasi kualitas" class="w-full p-3 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500" required>
+          </div>
+          <div>
+            <label for="agendaImg" class="block text-sm font-medium mb-1">Gambar (Opsional)</label>
+            <input type="file" id="agendaImg" accept="image/*" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600">
+          </div>
+          <div id="currentImageContainer" class="hidden">
+            <label class="block text-sm font-medium mb-1">Gambar Saat Ini</label>
+            <img id="currentImage" class="max-w-full h-32 object-contain rounded">
+            <button type="button" onclick="removeAgendaImage()" class="mt-2 text-red-400 text-sm">Hapus Gambar</button>
+          </div>
+          <div class="flex space-x-2">
+            <button type="submit" id="submitAgenda" class="bg-blue-600 hover:bg-blue-700 px-4 py-3 w-full rounded font-bold transition-colors">
+              Simpan
+            </button>
+            <button type="button" id="cancelEditAgenda" onclick="cancelEditAgenda()" class="bg-gray-600 hover:bg-gray-700 px-4 py-3 rounded font-bold transition-colors hidden">
+              Batal
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+<script>
+  // Inisialisasi data jika belum ada
+  if(!localStorage.getItem('kasLogs')) {
+    localStorage.setItem('kasLogs', JSON.stringify([]));
+  }
+  if(!localStorage.getItem('agendaList')) {
+    localStorage.setItem('agendaList', JSON.stringify([]));
+  }
+
+  // Variabel global untuk chart
+  let kasChart = null;
+
+  function checkPassword() {
+    const passwordInput = document.getElementById("passwordInput");
+    const pass = passwordInput.value.trim();
+    const loginSection = document.getElementById("loginSection");
+    const navBar = document.getElementById("navBar");
+    const adminNav = document.getElementById("adminNav");
+    const errorElement = document.getElementById("loginError");
+
+    // Validasi input kosong
+    if (!pass) {
+      errorElement.innerText = "Password tidak boleh kosong!";
+      passwordInput.focus();
+      return;
+    }
+
+    if (pass === "123456") {
+      loginSection.style.display = "none";
+      navBar.classList.remove("hidden");
+      showSection('dashboard');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('isAdmin', 'false');
+      checkDuePayments();
+    } else if (pass === "admin123") {
+      loginSection.style.display = "none";
+      navBar.classList.remove("hidden");
+      adminNav.classList.remove("hidden");
+      showSection('dashboard');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('isAdmin', 'true');
+      checkDuePayments();
+    } else {
+      errorElement.innerText = "Kata sandi salah!";
+      passwordInput.value = "";
+      passwordInput.focus();
+    }
+  }
+
+  function logout() {
+    // Sembunyikan navbar dan semua section
+    document.getElementById('navBar').classList.add('hidden');
+    document.querySelectorAll('main, section').forEach(el => {
+      if (el.id !== 'loginSection') {
+        el.classList.add('hidden');
+      }
+    });
+    
+    // Tampilkan kembali halaman login
+    document.getElementById('loginSection').style.display = 'flex';
+    
+    // Reset form login
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('loginError').textContent = '';
+    
+    // Sembunyikan menu admin
+    document.getElementById('adminNav').classList.add('hidden');
+    
+    // Hapus status login
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('isAdmin');
+  }
+
+  // Fungsi untuk mengecek iuran anggota
+  function checkDuePayments() {
+    const members = ['Ramdhani', 'Farhan Nasution', 'Wisnu Putro'];
+    const currentMonth = new Date().toLocaleString('id-ID', { month: '2-digit' });
+    const currentYear = new Date().getFullYear();
+    const logs = JSON.parse(localStorage.getItem("kasLogs"));
+    
+    const unpaidMembers = members.filter(member => {
+      return !logs.some(log => 
+        log.ket.includes(member) && 
+        log.tipe === 'Masuk' &&
+        log.tgl.startsWith(`${currentYear}-${currentMonth}`)
+      );
+    });
+
+    if (unpaidMembers.length > 0) {
+      showNotification(
+        `Pengingat: ${unpaidMembers.join(', ')} belum membayar iuran bulan ini`,
+        'yellow'
+      );
+    }
+  }
+
+  function showSection(id) {
+    // Sembunyikan semua section
+    document.querySelectorAll('main, section').forEach(el => {
+      if (el.id !== 'loginSection' && el.id !== 'navBar') {
+        el.classList.add("hidden");
+      }
+    });
+    
+    // Tampilkan section yang dipilih
+    const section = document.getElementById(id);
+    if(section) {
+      section.classList.remove("hidden");
+      
+      // Update data jika diperlukan
+      if(id === 'dashboard') {
+        updateDashboard();
+      } else if(id === 'agenda') {
+        loadAgenda();
+      }
+    }
+  }
+
+  // ==================== FUNGSI TRANSAKSI ====================
+  document.getElementById("formKas").addEventListener("submit", function(e) {
+    e.preventDefault();
+    
+    const tgl = document.getElementById("tgl");
+    const ket = document.getElementById("ket");
+    const tipe = document.getElementById("tipe");
+    const jml = document.getElementById("jml");
+    const editId = document.getElementById("editTransaksiId");
+    
+    // Validasi input
+    if(!tgl.value || !ket.value || !tipe.value || !jml.value) {
+      alert("Harap lengkapi semua field!");
+      return;
+    }
+    
+    const amount = Number(jml.value);
+    if(isNaN(amount) || amount <= 0) {
+      alert("Jumlah harus berupa angka positif!");
+      jml.focus();
+      return;
+    }
+    
+    const log = {
+      tgl: tgl.value,
+      ket: ket.value,
+      tipe: tipe.value,
+      jml: amount
+    };
+    
+    // Simpan ke localStorage
+    let logs = JSON.parse(localStorage.getItem("kasLogs"));
+    
+    if(editId.value) {
+      // Mode edit - update data yang ada
+      logs[editId.value] = log;
+      showNotification("✅ Transaksi berhasil diupdate", "green");
+    } else {
+      // Mode tambah - tambahkan data baru
+      logs.push(log);
+      showNotification("✅ Transaksi berhasil ditambahkan", "green");
+    }
+    
+    localStorage.setItem("kasLogs", JSON.stringify(logs));
+    
+    // Reset form
+    resetFormTransaksi();
+    
+    // Update dashboard
+    updateDashboard();
+  });
+
+  function editTransaksi(index) {
+    const logs = JSON.parse(localStorage.getItem("kasLogs"));
+    const transaksi = logs[index];
+    
+    // Isi form dengan data transaksi
+    document.getElementById("tgl").value = transaksi.tgl;
+    document.getElementById("ket").value = transaksi.ket;
+    document.getElementById("tipe").value = transaksi.tipe;
+    document.getElementById("jml").value = transaksi.jml;
+    document.getElementById("editTransaksiId").value = index;
+    
+    // Ubah tombol submit
+    document.getElementById("submitTransaksi").textContent = "Update";
+    document.getElementById("cancelEditTransaksi").classList.remove("hidden");
+    
+    // Scroll ke form
+    document.getElementById("admin").scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function hapusTransaksi(index) {
+    if(confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
+      let logs = JSON.parse(localStorage.getItem("kasLogs"));
+      logs.splice(index, 1);
+      localStorage.setItem("kasLogs", JSON.stringify(logs));
+      showNotification("❌ Transaksi berhasil dihapus", "red");
+      updateDashboard();
+    }
+  }
+
+  function cancelEditTransaksi() {
+    resetFormTransaksi();
+  }
+
+  function resetFormTransaksi() {
+    document.getElementById("formKas").reset();
+    document.getElementById("editTransaksiId").value = "";
+    document.getElementById("submitTransaksi").textContent = "Simpan";
+    document.getElementById("cancelEditTransaksi").classList.add("hidden");
+    // Set tanggal ke hari ini
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("tgl").value = today;
+  }
+
+  // ==================== FUNGSI AGENDA ====================
+  document.getElementById("formAgenda").addEventListener("submit", function(e) {
+    e.preventDefault();
+    
+    const agendaText = document.getElementById("agendaText");
+    const agendaImg = document.getElementById("agendaImg");
+    const editId = document.getElementById("editAgendaId");
+    
+    if(!agendaText.value.trim()) {
+      alert("Harap isi agenda meeting!");
+      agendaText.focus();
+      return;
+    }
+    
+    if(agendaImg.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        saveAgenda(agendaText.value, evt.target.result, editId.value);
+      };
+      reader.readAsDataURL(agendaImg.files[0]);
+    } else {
+      // Jika tidak ada gambar baru, cek apakah ada gambar yang sudah ada (saat edit)
+      const currentImg = document.getElementById("currentImage").src;
+      saveAgenda(agendaText.value, currentImg !== "" ? currentImg : null, editId.value);
+    }
+  });
+
+  function saveAgenda(text, img, editId = null) {
+    let list = JSON.parse(localStorage.getItem("agendaList"));
+    
+    const agendaItem = { 
+      text: text, 
+      img: img,
+      date: new Date().toISOString().split('T')[0] 
+    };
+    
+    if(editId !== null && editId !== "") {
+      // Mode edit
+      list[editId] = agendaItem;
+      showNotification("✅ Agenda berhasil diupdate", "blue");
+    } else {
+      // Mode tambah
+      list.push(agendaItem);
+      showNotification("✅ Agenda berhasil ditambahkan", "blue");
+    }
+    
+    localStorage.setItem("agendaList", JSON.stringify(list));
+    
+    // Reset form
+    resetFormAgenda();
+    
+    // Update tampilan agenda
+    loadAgenda();
+  }
+
+  function editAgenda(index) {
+    const list = JSON.parse(localStorage.getItem("agendaList"));
+    const agenda = list[index];
+    
+    // Isi form dengan data agenda
+    document.getElementById("agendaText").value = agenda.text;
+    document.getElementById("editAgendaId").value = index;
+    
+    // Tampilkan gambar saat ini jika ada
+    if(agenda.img) {
+      document.getElementById("currentImage").src = agenda.img;
+      document.getElementById("currentImageContainer").classList.remove("hidden");
+    } else {
+      document.getElementById("currentImageContainer").classList.add("hidden");
+    }
+    
+    // Ubah tombol submit
+    document.getElementById("submitAgenda").textContent = "Update";
+    document.getElementById("cancelEditAgenda").classList.remove("hidden");
+    
+    // Scroll ke form
+    document.getElementById("admin").scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function hapusAgenda(index) {
+    if(confirm("Apakah Anda yakin ingin menghapus agenda ini?")) {
+      let list = JSON.parse(localStorage.getItem("agendaList"));
+      list.splice(index, 1);
+      localStorage.setItem("agendaList", JSON.stringify(list));
+      showNotification("❌ Agenda berhasil dihapus", "red");
+      loadAgenda();
+    }
+  }
+
+  function removeAgendaImage() {
+    document.getElementById("currentImage").src = "";
+    document.getElementById("currentImageContainer").classList.add("hidden");
+    document.getElementById("agendaImg").value = ""; // Reset input file juga
+  }
+
+  function cancelEditAgenda() {
+    resetFormAgenda();
+  }
+
+  function resetFormAgenda() {
+    document.getElementById("formAgenda").reset();
+    document.getElementById("editAgendaId").value = "";
+    document.getElementById("submitAgenda").textContent = "Simpan";
+    document.getElementById("cancelEditAgenda").classList.add("hidden");
+    document.getElementById("currentImageContainer").classList.add("hidden");
+  }
+
+  // ==================== FITUR BARU ====================
+  // 1. Export Data ke Excel
+  function exportToExcel() {
+    showLoading();
+    const logs = JSON.parse(localStorage.getItem("kasLogs"));
+    let csv = 'Tanggal,Keterangan,Tipe,Jumlah\n';
+    
+    logs.forEach(log => {
+      csv += `${log.tgl},"${log.ket}",${log.tipe},${log.jml}\n`;
+    });
+
+    setTimeout(() => {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `laporan_kas_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+      hideLoading();
+    }, 500);
+  }
+
+  // 2. Filter Transaksi
+  function applyFilter() {
+    showLoading();
+    setTimeout(() => {
+      const logs = JSON.parse(localStorage.getItem("kasLogs"));
+      const bulan = document.getElementById("filterBulan").value;
+      const tipe = document.getElementById("filterTipe").value;
+      const min = document.getElementById("filterMin").value;
+
+      let filtered = logs.filter(log => {
+        const logBulan = log.tgl.split('-')[1];
+        return (bulan === 'all' || logBulan === bulan) &&
+              (tipe === 'all' || log.tipe === tipe) &&
+              (!min || log.jml >= Number(min));
+      });
+
+      renderFilteredLogs(filtered);
+      hideLoading();
+    }, 300);
+  }
+
+  function renderFilteredLogs(logs) {
+    const body = document.getElementById("logBody");
+    body.innerHTML = "";
+    
+    logs.forEach((x, index) => {
+      const row = document.createElement("tr");
+      row.className = "hover:bg-gray-700";
+      
+      row.innerHTML = `
+        <td class="p-3">${formatDate(x.tgl)}</td>
+        <td class="p-3">${x.ket}</td>
+        <td class="p-3">
+          <span class="${x.tipe === 'Masuk' ? 'text-green-400' : 'text-red-400'}">
+            ${x.tipe}
+          </span>
+        </td>
+        <td class="p-3 text-right">${formatRupiah(x.jml)}</td>
+        <td class="p-3 text-center space-x-1">
+          <button onclick="editTransaksi(${index})" class="action-btn bg-yellow-600 hover:bg-yellow-700">
+            Edit
+          </button>
+          <button onclick="hapusTransaksi(${index})" class="action-btn bg-red-600 hover:bg-red-700">
+            Hapus
+          </button>
+        </td>
+      `;
+      
+      body.appendChild(row);
+    });
+  }
+
+  // 3. Grafik Kas
+  function updateChart() {
+    const ctx = document.getElementById('kasChart').getContext('2d');
+    const logs = JSON.parse(localStorage.getItem("kasLogs"));
+    
+    // Siapkan data per bulan
+    const monthlyData = Array(12).fill(0).map((_, i) => {
+      const monthLogs = logs.filter(log => {
+        return parseInt(log.tgl.split('-')[1]) === i + 1;
+      });
+      
+      return {
+        masuk: monthLogs.filter(l => l.tipe === 'Masuk').reduce((a, b) => a + b.jml, 0),
+        keluar: monthLogs.filter(l => l.tipe === 'Keluar').reduce((a, b) => a + b.jml, 0)
+      };
+    });
+
+    // Hancurkan chart sebelumnya jika ada
+    if (kasChart) kasChart.destroy();
+    
+    // Buat chart baru
+    kasChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'],
+        datasets: [
+          {
+            label: 'Kas Masuk',
+            data: monthlyData.map(m => m.masuk),
+            backgroundColor: 'rgba(59, 130, 246, 0.7)'
+          },
+          {
+            label: 'Kas Keluar',
+            data: monthlyData.map(m => m.keluar),
+            backgroundColor: 'rgba(239, 68, 68, 0.7)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return 'Rp' + value.toLocaleString();
+              }
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': Rp' + context.raw.toLocaleString();
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ==================== FUNGSI UTILITAS ====================
+  function updateDashboard() {
+    let logs = JSON.parse(localStorage.getItem("kasLogs"));
+    
+    // Pastikan semua nilai jml adalah number
+    logs = logs.map(log => {
+      return {
+        ...log,
+        jml: Number(log.jml) || 0
+      };
+    });
+    
+    // Hitung total
+    let masuk = logs.filter(x => x.tipe === "Masuk").reduce((a, b) => a + b.jml, 0);
+    let keluar = logs.filter(x => x.tipe === "Keluar").reduce((a, b) => a + b.jml, 0);
+    let total = masuk - keluar;
+    
+    // Update tampilan
+    document.getElementById("kasMasuk").innerText = formatRupiah(masuk);
+    document.getElementById("kasKeluar").innerText = formatRupiah(keluar);
+    document.getElementById("totalKas").innerText = formatRupiah(total);
+    
+    // Update tabel transaksi
+    renderFilteredLogs(logs);
+    
+    // Update chart
+    updateChart();
+  }
+
+  function loadAgenda() {
+    const list = JSON.parse(localStorage.getItem("agendaList"));
+    const area = document.getElementById("agendaList");
+    area.innerHTML = "";
+    
+    // Urutkan dari yang terbaru
+    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    list.forEach((item, index) => {
+      const agendaItem = document.createElement("li");
+      agendaItem.className = "bg-gray-800 p-5 rounded-lg shadow hover:shadow-md transition-shadow fade-in";
+      
+      agendaItem.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="font-medium">${item.text}</p>
+            <p class="text-sm text-gray-400 mt-1">${formatDate(item.date)}</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="editAgenda(${index})" class="action-btn bg-yellow-600 hover:bg-yellow-700">
+              Edit
+            </button>
+            <button onclick="hapusAgenda(${index})" class="action-btn bg-red-600 hover:bg-red-700">
+              Hapus
+            </button>
+          </div>
+        </div>
+        ${item.img ? `<img src="${item.img}" class="mt-3 max-w-full h-auto max-h-64 rounded-lg mx-auto" alt="Gambar agenda">` : ""}
+      `;
+      
+      area.appendChild(agendaItem);
+    });
+  }
+
+  function formatRupiah(amount) {
+    return `Rp ${amount.toLocaleString('id-ID')}`;
+  }
+
+  function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('id-ID', options);
+  }
+
+  function showNotification(message, color) {
+    const notification = document.createElement("div");
+    notification.className = `fixed top-4 right-4 px-4 py-2 rounded shadow-lg bg-${color}-600 text-white font-medium z-50 fade-in`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.classList.remove("fade-in");
+      notification.classList.add("fade-out");
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  function showLoading() {
+    document.getElementById('loading').classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    document.getElementById('loading').classList.add('hidden');
+  }
+
+  // Inisialisasi saat halaman dimuat
+  document.addEventListener("DOMContentLoaded", function() {
+    // Jika sudah login, langsung tampilkan dashboard
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('navBar').classList.remove('hidden');
+      showSection('dashboard');
+      
+      if (localStorage.getItem('isAdmin') === 'true') {
+        document.getElementById('adminNav').classList.remove('hidden');
+      }
+    }
+    
+    // Set tanggal otomatis di form transaksi
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("tgl").value = today;
+    
+    // Fokus ke input password saat halaman dimuat
+    document.getElementById("passwordInput").focus();
+    
+    // Tambahkan event listener untuk enter di password
+    document.getElementById("passwordInput").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        checkPassword();
+      }
+    });
+  });
+</script>
+</body>
+</html>
