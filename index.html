@@ -160,52 +160,46 @@
     });
 
     // Auth Functions
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
+    <script type="module">
+  import { handleLogin, handleRegister } from './firebase-auth.js';
 
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-        window.location.href = 'dashboard.html';
-      } catch (error) {
-        showError(error.message);
-      }
-    });
-
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('register-name').value;
-      const email = document.getElementById('register-email').value;
-      const password = document.getElementById('register-password').value;
-
-      try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection('users').doc(userCredential.user.uid).set({
-          name,
-          email,
-          role: 'qc',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        window.location.href = 'dashboard.html';
-      } catch (error) {
-        showError(error.message);
-      }
-    });
-
-    // Check Auth State
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        window.location.href = 'dashboard.html';
-      }
-    });
-
-    function showError(message) {
-      const errorEl = document.getElementById('error-message');
-      errorEl.textContent = message;
-      errorEl.classList.remove('hidden');
-      setTimeout(() => errorEl.classList.add('hidden'), 5000);
+  // Login Handler
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await handleLogin(
+        document.getElementById('login-email').value,
+        document.getElementById('login-password').value
+      );
+      window.location.href = 'dashboard.html';
+    } catch (error) {
+      showError(error.message);
     }
+  });
+
+  // Register Handler
+  document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await handleRegister(
+        document.getElementById('register-name').value,
+        document.getElementById('register-email').value,
+        document.getElementById('register-password').value
+      );
+      window.location.href = 'dashboard.html';
+    } catch (error) {
+      showError(error.message);
+    }
+  });
+
+  // Fungsi Tampilkan Error (tetap di index.html)
+  function showError(message) {
+    const errorEl = document.getElementById('error-message');
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+    setTimeout(() => errorEl.classList.add('hidden'), 5000);
+  }
+</script>
   </script>
 </body>
 </html>
