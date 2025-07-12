@@ -9,12 +9,13 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyD0RL0zvv4DL9EBax3XouugVZpkHdzyVNQ",
+  authDomain: "wallet-qc-local-storage.firebaseapp.com",
+  projectId: "wallet-qc-local-storage",
+  storageBucket: "wallet-qc-local-storage.firebasestorage.app",
+  messagingSenderId: "443546801664",
+  appId: "1:443546801664:web:d520fd8d2f311edd20aae5",
+  measurementId: "G-KVKSD7ES9P"
 };
 
 const app = initializeApp(firebaseConfig);
