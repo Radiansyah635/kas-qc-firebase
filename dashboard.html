@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Kas QC Shift</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom, #000000, #0f0f0f);
+      min-height: 100vh;
+    }
+    .solana-card {
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+    .neon-text {
+      text-shadow: 0 0 8px rgba(139, 92, 246, 0.8);
+    }
+  </style>
+</head>
+<body class="text-gray-100 font-sans flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-green-400 bg-clip-text text-transparent mb-2">
+        Kas QC Shift
+      </h1>
+      <p class="text-gray-400">Login untuk mengakses dashboard</p>
+    </div>
+
+    <!-- Login/Register Tabs -->
+    <div class="solana-card bg-gray-900/50 rounded-xl overflow-hidden mb-6">
+      <div class="flex border-b border-gray-800">
+        <button id="login-tab" class="flex-1 py-4 font-medium bg-gray-800/50 text-purple-400">
+          Login
+        </button>
+        <button id="register-tab" class="flex-1 py-4 font-medium text-gray-400 hover:bg-gray-800/30">
+          Register
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="p-6">
+        <div class="space-y-4">
+          <div>
+            <label for="login-email" class="block text-sm mb-1 text-gray-300">Email</label>
+            <input 
+              type="email" 
+              id="login-email" 
+              required
+              class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="email@contoh.com"
+            >
+          </div>
+          <div>
+            <label for="login-password" class="block text-sm mb-1 text-gray-300">Password</label>
+            <input 
+              type="password" 
+              id="login-password" 
+              required
+              class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="••••••••"
+            >
+          </div>
+          <button type="submit" class="w-full py-3 bg-gradient-to-r from-purple-600 to-green-500 hover:opacity-90 rounded-lg font-medium">
+            Masuk
+          </button>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" class="p-6 hidden">
+        <div class="space-y-4">
+          <div>
+            <label for="register-name" class="block text-sm mb-1 text-gray-300">Nama Lengkap</label>
+            <input 
+              type="text" 
+              id="register-name" 
+              required
+              class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="Nama Anda"
+            >
+          </div>
+          <div>
+            <label for="register-email" class="block text-sm mb-1 text-gray-300">Email</label>
+            <input 
+              type="email" 
+              id="register-email" 
+              required
+              class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="email@contoh.com"
+            >
+          </div>
+          <div>
+            <label for="register-password" class="block text-sm mb-1 text-gray-300">Password</label>
+            <input 
+              type="password" 
+              id="register-password" 
+              required
+              class="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="••••••••"
+            >
+          </div>
+          <button type="submit" class="w-full py-3 bg-gradient-to-r from-green-600 to-cyan-500 hover:opacity-90 rounded-lg font-medium">
+            Daftar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error-message" class="text-center text-red-400 text-sm hidden"></div>
+
+    <!-- Footer -->
+    <p class="text-center text-gray-500 text-sm mt-8">
+      © 2025 Kas QC Shift - Powered by Firebase
+    </p>
+  </div>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // UI Handlers
+    document.getElementById('login-tab').addEventListener('click', () => {
+      document.getElementById('login-form').classList.remove('hidden');
+      document.getElementById('register-form').classList.add('hidden');
+      document.getElementById('login-tab').classList.add('bg-gray-800/50', 'text-purple-400');
+      document.getElementById('login-tab').classList.remove('text-gray-400');
+      document.getElementById('register-tab').classList.add('text-gray-400');
+      document.getElementById('register-tab').classList.remove('bg-gray-800/50', 'text-purple-400');
+    });
+
+    document.getElementById('register-tab').addEventListener('click', () => {
+      document.getElementById('register-form').classList.remove('hidden');
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('register-tab').classList.add('bg-gray-800/50', 'text-purple-400');
+      document.getElementById('register-tab').classList.remove('text-gray-400');
+      document.getElementById('login-tab').classList.add('text-gray-400');
+      document.getElementById('login-tab').classList.remove('bg-gray-800/50', 'text-purple-400');
+    });
+
+    // Auth Functions
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = 'dashboard.html';
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('register-name').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        await db.collection('users').doc(userCredential.user.uid).set({
+          name,
+          email,
+          role: 'qc',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        window.location.href = 'dashboard.html';
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+
+    // Check Auth State
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        window.location.href = 'dashboard.html';
+      }
+    });
+
+    function showError(message) {
+      const errorEl = document.getElementById('error-message');
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+      setTimeout(() => errorEl.classList.add('hidden'), 5000);
+    }
+  </script>
+</body>
+</html>
