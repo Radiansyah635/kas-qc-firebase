@@ -1,6 +1,18 @@
 // firebase-auth.js
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  onAuthStateChanged 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  serverTimestamp 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js';
 
-// Konfigurasi Firebase (PASTIKAN SAMA DI SEMUA FILE)
 const firebaseConfig = {
   apiKey: "AIzaSyBkLRJxWnw_8x8gJyBw1vQdQ7YH3q9X9ZQ",
   authDomain: "kas-qc-firebase.firebaseapp.com",
@@ -10,25 +22,41 @@ const firebaseConfig = {
   appId: "1:1234567890:web:abcdef123456"
 };
 
-// Inisialisasi Firebase
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Fungsi Login
+export async function handleLogin(email, password) {
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    return true;
+  } catch (error) {
+    throw error;
+  }
 }
 
-// Ekspor modul Firebase yang digunakan
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+// Fungsi Register
+export async function handleRegister(name, email, password) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      name,
+      email,
+      role: 'qc',
+      createdAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
 
-// Fungsi umum
-function checkAuth() {
+// Cek Status Auth
+export function checkAuthState() {
   return new Promise((resolve) => {
-    auth.onAuthStateChanged((user) => {
-      if (user) resolve(user);
-      else window.location.href = 'index.html';
+    onAuthStateChanged(auth, (user) => {
+      resolve(user);
     });
   });
 }
-
-// Ekspor untuk digunakan di file lain
-export { auth, db, storage, checkAuth };
